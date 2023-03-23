@@ -177,7 +177,7 @@ export default class EmbedGenerator {
     ctx.fillStyle = "#ffffff";
     ctx.font = "30px Lato-Black";
     ctx.textAlign = "left";
-    ctx.fillText(`Live Server data is provided by jpxs.international | Last updated at ${new Date().getHours() % 12 + 1}:${(new Date().getMinutes() + 1).toString().padStart(2, "0")} ${new Date().getHours() > 11 ? "PM" : "AM"} EST`, padding, canvas.height - padding - 10);
+    ctx.fillText(`Last updated at ${new Date().getHours() % 12 + 1}:${(new Date().getMinutes() + 1).toString().padStart(2, "0")} ${new Date().getHours() > 11 ? "PM" : "AM"} GMT`, padding, canvas.height - padding - 10);
 
     const attachments = [
       new AttachmentBuilder(canvas.toBuffer("image/png"), {
