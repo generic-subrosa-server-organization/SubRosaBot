@@ -23,6 +23,6 @@ module.exports = {
     COMMAND_MODE: "GUILD",
 
     // Guild ID to use for command mode (if COMMAND_MODE is GUILD)
-    GUILD_ID: "1054362204213882920"
+    GUILD_ID: "344534447325970432"
     
 }

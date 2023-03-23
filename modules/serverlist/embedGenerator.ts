@@ -1,9 +1,9 @@
-import { AttachmentBuilder, ColorResolvable, EmbedBuilder, GuildTextBasedChannel } from "discord.js";
+import { ActionRowBuilder, ActivityType, AttachmentBuilder, ButtonBuilder, ButtonStyle, ColorResolvable, EmbedBuilder, GuildTextBasedChannel } from "discord.js";
 import ServerlistModule from ".";
 import fetch from "node-fetch";
 import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
-import { ms } from "../../core/utils/time";
 import Logger from "../../core/utils/logger";
+import { bot } from "../../core";
 
 interface Server {
   address: string;
@@ -37,207 +37,173 @@ export default class EmbedGenerator {
   public static async updateEmbeds() {
     const channelId = ServerlistModule.getServerlistModule().persistantStorage.get("channelId");
     const messageId = ServerlistModule.getServerlistModule().persistantStorage.get("messageId");
-    const serverlist = ServerlistModule.getServerlistModule().persistantStorage.get("serverlist");
     const lastDay = ServerlistModule.getServerlistModule().persistantStorage.get("lastDay");
 
-    if (!channelId || !messageId || !serverlist || !lastDay) {
+    if (!channelId || !lastDay) {
       Logger.error("EmbedGenerator", "Serverlist not configured");
 
       const s = ServerlistModule.getServerlistModule().persistantStorage;
 
       s.set("channelId", "channelId");
       s.set("messageId", "messageId");
-      s.set("serverlist", []);
       s.set("lastDay", {});
     }
 
-    const servers = await fetch("https://jpxs.international/api/servers").then((res) =>
-      res.json().then((json) => json.servers as Server[])
+    const servers = await fetch("https://jpxs.international/api/servers")
+      .then((res) => res.json().then((json) => json as Server[]))
+      .then((servers) => servers.sort((a, b) => b.players - a.players))
+      .catch((err) => {
+        Logger.error("EmbedGenerator", "Failed to fetch serverlist", err);
+        return [];
+      });
+
+    const padding = 10;
+
+    const serverListWidth = 3;
+    const serverListHeight = Math.ceil(servers.length / serverListWidth);
+
+    const serverListCellWidth = 550;
+    const serverListCellHeight = 200;
+
+    const canvas = createCanvas(
+      serverListWidth * serverListCellWidth,
+      150 + serverListCellHeight * serverListHeight
     );
+    const ctx = canvas.getContext("2d");
 
-    const embeds: EmbedBuilder[] = [];
-    const attachments: AttachmentBuilder[] = [];
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const promises = serverlist.map(async (serverListData, index) => {
-      const serverIp = serverListData.ip;
-      let serverData = lastDay[serverIp];
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "50px Lato-BlackItalic";
+    ctx.textAlign = "center";
+    ctx.fillText(servers.length > 0 ? "Sub Rosa Server List" : "No servers online" , canvas.width / 2, 70);
 
-      const icon = await loadImage(serverListData.icon);
-      const [ip, port] = serverIp.split(":");
-      const server = servers.find((server) => server.address === ip && server.port === parseInt(port));
+    servers.forEach((server, i) => {
+      const x = (i % serverListWidth) * serverListCellWidth;
+      const y = 100 + Math.floor(i / serverListWidth) * serverListCellHeight;
 
-      if (!server) return Logger.error("EmbedGenerator", `Server ${serverIp} not found`);
-
-      const embed = new EmbedBuilder();
-
-      const canvas = createCanvas(700, 500);
-      const ctx = canvas.getContext("2d");
-
-      ctx.fillStyle = "#111";
-      ctx.fillRect(0, 0, 700, 500);
-
-      ctx.drawImage(icon, 610, 10, 80, 80);
-
-      ctx.fillStyle = "#fff";
-      ctx.font = `50px ${fonts.Italic}`;
-      ctx.fillText(server.name, 10, 50);
-
-      ctx.font = `30px ${fonts.Black}`;
-      ctx.fillText(`Players: ${server.players}/${server.maxPlayers}`, 10, 100);
-
-      const playerCountLineLength = ctx.measureText(`Players: ${server.players}/${server.maxPlayers}`).width;
-
-      ctx.strokeStyle = "#fff";
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 5;
-      ctx.lineCap = "round";
-
-      // fill bar based on player count
-      ctx.fillStyle = "#fff";
-      ctx.strokeRect(playerCountLineLength + 50, 70, 500 - playerCountLineLength, 30);
-      ctx.fillRect(
-        playerCountLineLength + 50,
-        70,
-        (500 - playerCountLineLength) * (server.players / server.maxPlayers),
-        30
+      ctx.strokeRect(
+        x + padding,
+        y + padding,
+        serverListCellWidth - padding * 2,
+        serverListCellHeight - padding * 2
       );
 
-      // graph border
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "30px Lato-Black";
+      ctx.textAlign = "left";
+      ctx.fillText(server.name, x + padding * 2, y + padding * 2 + 30);
 
-      ctx.strokeRect(10, 110, 680, 380);
+      const maxPlayers = server.maxPlayers;
+      const players = server.players;
 
-      // graph
-      const farLeftTimestamp = Date.now() - ms("1 h");
-      const farRightTimestamp = Date.now();
+      const playerCount = `${players}/${maxPlayers}`;
 
-      const farLeftX = 10;
-      const farRightX = 690;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "30px Lato-Black";
+      ctx.textAlign = "right";
+      ctx.fillText(playerCount, x + serverListCellWidth - padding * 2, y + padding * 2 + 30);
 
-      const topY = 110;
-      const bottomY = 490;
+      const textWidth = ctx.measureText(playerCount).width;
 
-      const graphWidth = farRightX - farLeftX;
-      const graphHeight = bottomY - topY;
+      // draw player bar
+      ctx.strokeRect(
+        x + serverListCellWidth - padding * 2 - textWidth - 10,
+        y + padding * 2 + 40,
+        textWidth + 10,
+        20
+      );
 
-      const graphData = serverData.map((data, index) => ({
-        x:
-          farLeftX +
-          ((data.timestamp - farLeftTimestamp) / (farRightTimestamp - farLeftTimestamp)) * graphWidth,
-        y: bottomY - (data.playerCount / server.maxPlayers) * graphHeight,
-        playerCount: data.playerCount,
-        index,
-      }));
+      ctx.fillRect(
+        x + serverListCellWidth - padding * 2 - textWidth - 10,
+        y + padding * 2 + 40,
+        (textWidth + 10) * (players / maxPlayers),
+        20
+      );
 
-      ctx.beginPath();
-      ctx.moveTo(graphData[0].x, graphData[0].y);
+      ctx.fillStyle = `hsl(${server.version * 50}, 100%, 50%)`;
+      ctx.font = "20px Lato-Black";
+      ctx.textAlign = "left";
+      ctx.fillText(`${server.version}${server.build}`, x + padding * 2, y + padding * 2 + 60);
 
-      let bullets: { x: number; y: number }[] = [];
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "20px Lato-Black";
+      ctx.textAlign = "left";
+      ctx.fillText(`${server.latency}ms`, x + padding * 2 + 50, y + padding * 2 + 60);
 
-      graphData.forEach((data, index) => {
-        ctx.lineTo(data.x, data.y);
+      ctx.moveTo(x + padding * 2, y + padding * 2 + 80);
+      ctx.lineTo(x + serverListCellWidth - padding * 2, y + padding * 2 + 80);
+      ctx.stroke();
 
-        if (index % 10 === 0 && index > 2) {
-          // draw player count text
+      // draw graph
+      const graphWidth = serverListCellWidth - padding * 4;
+      const graphHeight = 70;
 
-          let drawHigher = false;
+      const graphX = x + padding * 2;
+      const graphY = y + padding * 2 + 90;
 
-          // if the next or previous data point would would intersect with the text, draw it higher up
-          if (
-            (graphData[index + 1] && graphData[index + 1].x - data.x < 2) ||
-            (graphData[index - 1] && data.x - graphData[index - 1].x < 2)
-          )
-            drawHigher = true;
+      const leftTimestamp = Date.now() - 1000 * 60 * 60;
+      const rightTimestamp = Date.now();
 
-          ctx.fillStyle = "#fff";
-          ctx.font = `20px ${fonts.Light}`;
-          const text = ctx.measureText(`${data.playerCount}`);
-          ctx.fillText(`${data.playerCount}`, data.x - text.width / 2, data.y - (drawHigher ? -20 : 10));
+      const bottomPlayers = 0;
+      const topPlayers = server.maxPlayers;
 
-          // add bullet to array
-          bullets.push({ x: data.x, y: data.y });
+      const graphData = lastDay[server.identifier] || [];
+
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+
+      graphData.forEach((data, i) => {
+        const x = graphX + ((data.timestamp - leftTimestamp) / (rightTimestamp - leftTimestamp)) * graphWidth;
+        const y =
+          graphY +
+          graphHeight -
+          ((data.playerCount - bottomPlayers) / (topPlayers - bottomPlayers)) * graphHeight;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
         }
       });
 
       ctx.stroke();
-
-      // draw bullets
-      bullets.forEach((bullet) => {
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // add peak player count, and lowest player count
-
-      const peakPlayerCount = Math.max(...serverData.slice(3).map((data) => data.playerCount));
-      const lowestPlayerCount = Math.min(...serverData.slice(3).map((data) => data.playerCount));
-
-      const peakPlayerCountData = graphData.find((data) => data.playerCount === peakPlayerCount);
-
-      if (peakPlayerCountData) {
-        ctx.fillStyle = "#0f0";
-        ctx.font = `20px ${fonts.Light}`;
-        const peakPlayerCountText = ctx.measureText(`${peakPlayerCount}`);
-        ctx.fillText(
-          `${peakPlayerCount}`,
-          peakPlayerCountData.x - peakPlayerCountText.width / 2,
-          peakPlayerCountData.y - 10
-        );
-
-        // draw bullet
-        ctx.beginPath();
-        ctx.arc(peakPlayerCountData.x, peakPlayerCountData.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      const lowestPlayerCountData = graphData.find((data) => data.playerCount === lowestPlayerCount);
-
-      if (lowestPlayerCountData) {
-        ctx.fillStyle = "#f00";
-        ctx.font = `20px ${fonts.Light}`;
-        const lowestPlayerCountText = ctx.measureText(`${lowestPlayerCount}`);
-        ctx.fillText(
-          `${lowestPlayerCount}`,
-          lowestPlayerCountData.x - lowestPlayerCountText.width / 2,
-          lowestPlayerCountData.y + 30
-        );
-
-        // draw bullet
-        ctx.beginPath();
-        ctx.arc(lowestPlayerCountData.x, lowestPlayerCountData.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      const buf = canvas.toBuffer("image/png");
-      const attachment = new AttachmentBuilder(buf, {
-        name: `server${index}.png`,
-      });
-
-      embed.setImage(`attachment://server${index}.png`);
-      attachments.push(attachment);
-
-      embed.setFooter({
-        text: `Graph shows last 1 hour of player count | Data provided by jpxs.international`,
-      });
-
-      embed.setColor(serverListData.color as ColorResolvable);
-
-      if (!serverData) serverData = [];
-
-      // only keep last 1 hour of data
-      serverData = serverData.filter((data) => data.timestamp > Date.now() - ms("1 h"));
-
-      serverData.push({
-        timestamp: Date.now(),
-        playerCount: server.players,
-      });
-
-      lastDay[serverIp] = serverData;
-
-      embeds.push(embed);
     });
 
-    await Promise.all(promises);
+    // bottom text
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "30px Lato-Black";
+    ctx.textAlign = "left";
+    ctx.fillText(`Live Server data is provided by jpxs.international | Last updated at ${new Date().getHours() % 12 + 1}:${(new Date().getMinutes() + 1).toString().padStart(2, "0")} ${new Date().getHours() > 11 ? "PM" : "AM"} EST`, padding, canvas.height - padding - 10);
+
+    const attachments = [
+      new AttachmentBuilder(canvas.toBuffer("image/png"), {
+        name: "serverlist.png",
+      }),
+    ];
 
     ServerlistModule.getServerlistModule().persistantStorage.set("lastDay", lastDay);
+
+    const buttons = new ActionRowBuilder<ButtonBuilder>()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId("credits")
+        .setLabel("Credits")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("rosaclassic")
+        .setLabel("RosaClassic")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setLabel("View Serverlist")
+        .setStyle(ButtonStyle.Link)
+        .setURL("https://jpxs.international/live"),
+    );
+
+
 
     const channel = (await ServerlistModule.getServerlistModule().bot.client.channels.fetch(
       channelId
@@ -245,26 +211,54 @@ export default class EmbedGenerator {
 
     if (!channel) return Logger.error("Channel not found");
 
-    const message = await channel.messages.fetch(messageId);
+    const message = messageId
+      ? await channel.messages.fetch(messageId).catch(() => {
+          // @ts-ignore
+          ServerlistModule.getServerlistModule().persistantStorage.set("messageId", null);
+        })
+      : null;
 
     if (message && message.editable) {
-      
-      await message.edit({ embeds: embeds, files: attachments }).catch(async (err) => {
-
+      await message.edit({ files: attachments }).catch(async (err) => {
         Logger.error("EmbedGenerator", err);
         await channel.bulkDelete(100);
-        const msg = await channel.send({ embeds: embeds, files: attachments });
+        const msg = await channel.send({ files: attachments, components: [buttons] });
         ServerlistModule.getServerlistModule().persistantStorage.set("messageId", msg.id);
-        
       });
-
     } else {
-
       await channel.bulkDelete(100);
-      const msg = await channel.send({ embeds: embeds, files: attachments });
+      const msg = await channel.send({ files: attachments, components: [buttons] });
       ServerlistModule.getServerlistModule().persistantStorage.set("messageId", msg.id);
-
     }
+
+    servers.forEach((server) => {
+      const lastDay = ServerlistModule.getServerlistModule().persistantStorage.get("lastDay") || {};
+      const serverData = lastDay[server.identifier] || [];
+
+      // don't keep more than 1 hour of data
+      while (serverData.length > 0 && serverData[0].timestamp < Date.now() - 1000 * 60 * 60) {
+        serverData.shift();
+      }
+
+      serverData.push({
+        timestamp: Date.now(),
+        playerCount: server.players,
+      });
+      lastDay[server.identifier] = serverData;
+      ServerlistModule.getServerlistModule().persistantStorage.set("lastDay", lastDay);
+    });
+
+    let totalPlayers = 0;
+    let totalServers = servers.length;
+
+    servers.forEach((server) => {
+      totalPlayers += server.players;
+    });
+
+    bot.client.user?.setActivity({
+      type: ActivityType.Playing,
+      name: `Sub Rosa; ${totalPlayers} players on ${totalServers} servers`,
+    })
 
     Logger.info("EmbedGenerator", "Updated serverlist");
   }
