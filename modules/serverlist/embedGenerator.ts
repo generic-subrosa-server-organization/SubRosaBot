@@ -148,10 +148,13 @@ export default class EmbedGenerator {
       const leftTimestamp = Date.now() - 1000 * 60 * 60;
       const rightTimestamp = Date.now();
 
-      const bottomPlayers = 0;
-      const topPlayers = server.maxPlayers;
-
       const graphData = lastDay[server.identifier] || [];
+
+      const calculatedMaxPlayers = graphData.reduce((acc, data) => Math.max(acc, data.playerCount), 0);
+
+      const bottomPlayers = 0;
+      const topPlayers = calculatedMaxPlayers > maxPlayers ? calculatedMaxPlayers : maxPlayers;
+
 
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
