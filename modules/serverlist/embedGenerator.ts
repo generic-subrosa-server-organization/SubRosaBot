@@ -148,7 +148,7 @@ export default class EmbedGenerator {
       const leftTimestamp = Date.now() - 1000 * 60 * 60;
       const rightTimestamp = Date.now();
 
-      const graphData = lastDay[server.identifier] || [];
+      const graphData = lastDay[getId(server)] || [];
 
       const calculatedMaxPlayers = graphData.reduce((acc, data) => Math.max(acc, data.playerCount), 0);
 
@@ -236,7 +236,7 @@ export default class EmbedGenerator {
 
     servers.forEach((server) => {
       const lastDay = ServerlistModule.getServerlistModule().persistantStorage.get("lastDay") || {};
-      const serverData = lastDay[server.identifier] || [];
+      const serverData = lastDay[getId(server)] || [];
 
       // don't keep more than 1 hour of data
       while (serverData.length > 0 && serverData[0].timestamp < Date.now() - 1000 * 60 * 60) {
@@ -247,7 +247,7 @@ export default class EmbedGenerator {
         timestamp: Date.now(),
         playerCount: server.players,
       });
-      lastDay[server.identifier] = serverData;
+      lastDay[getId(server)] = serverData;
       ServerlistModule.getServerlistModule().persistantStorage.set("lastDay", lastDay);
     });
 
@@ -265,4 +265,8 @@ export default class EmbedGenerator {
 
     Logger.info("EmbedGenerator", "Updated serverlist");
   }
+}
+
+function getId(server: Server) {
+  return `${server.address}:${server.port}`;
 }
