@@ -41,10 +41,10 @@ export default class ServerlistModule extends Module<
         .setTitle("Credits")
         .setDescription(
           [
-            "This bot was developed by `gart#9211` ([website](https://gart.sh) | [github](https://github.com/gurrrrrrett3))",
-            "Live server data is provided by `jpxs.international` ([website](https://jpxs.international))",
-            "jpsx.international uses a modified version of a library by `jdb` ([github](https://github.com/jdbool/)), and is based off of oxs.international ([website](https://oxs.international))",
-            "RosaClassic is a community master server developed by `checkraisefold#4108` and `gart#9211` to play older versions of Sub Rosa ([discord](https://gart.sh/rosaclassic))",
+            "This bot was developed by `gart` ([website](https://gart.sh) | [github](https://github.com/gurrrrrrett3))",
+            "Live server data is provided by `jpxs.international` ([website](https://jpxs.international) | [discord](https://jpxs.io))",
+            "jpxs.international uses a modified version of a library by `jdb` ([github](https://github.com/jdbool/)), and is based off of oxs.international ([website](https://oxs.international))",
+            "RosaClassic is a community master server developed by `checkraisefold` and `gart` to play older versions of Sub Rosa ([discord](https://gart.sh/rosaclassic))",
           ].join("\n")
         )
         .setColor(Colors.Blue);
