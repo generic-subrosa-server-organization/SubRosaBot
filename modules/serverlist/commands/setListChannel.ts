@@ -22,3 +22,4 @@ const Command = new SlashCommandBuilder()
 export default Command;
 
 // Use the "command" snippet to create a new command
+1

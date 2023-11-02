@@ -132,7 +132,7 @@ export default class EmbedGenerator {
         20
       );
 
-      ctx.fillStyle = `hsl(${server.version * 50}, 100%, 50%)`;
+      ctx.fillStyle = `hsl(${server.version * 14}, 100%, 50%)`;
       ctx.font = "20px Lato-Black";
       ctx.textAlign = "left";
       ctx.fillText(`${server.version}${server.build}`, x + padding * 2, y + padding * 2 + 60);
