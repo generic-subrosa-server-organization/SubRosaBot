@@ -20,6 +20,13 @@ interface Server {
   players: number;
   maxPlayers: number;
   masterServer: string;
+  customMode?: {
+    name: string;
+    description: string;
+    author: string;
+  },
+  map?: string;
+  tps?: number;
 }
 
 // loadfonts
@@ -49,7 +56,7 @@ export default class EmbedGenerator {
       s.set("lastDay", {});
     }
 
-    const servers = await fetch("https://jpxs.international/api/servers")
+    const servers = await fetch("https://jpxs.io/api/servers")
       .then((res) => res.json().then((json) => json as Server[]))
       .then((servers) => servers.sort((a, b) => b.players - a.players))
       .catch((err) => {
@@ -57,12 +64,13 @@ export default class EmbedGenerator {
         return [];
       });
 
+
     const padding = 10;
 
     const serverListWidth = 3;
     const serverListHeight = Math.ceil(servers.length / serverListWidth);
 
-    const serverListCellWidth = 550;
+    const serverListCellWidth = 600;
     const serverListCellHeight = 200;
 
     const canvas = createCanvas(
@@ -129,10 +137,29 @@ export default class EmbedGenerator {
       ctx.textAlign = "left";
       ctx.fillText(`${server.version}${server.build}`, x + padding * 2, y + padding * 2 + 60);
 
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "20px Lato-Black";
-      ctx.textAlign = "left";
-      ctx.fillText(`${server.latency}ms`, x + padding * 2 + 50, y + padding * 2 + 60);
+      let widthAddition = 0;
+
+      // ctx.fillStyle = "#ffffff";
+      // ctx.font = "20px Lato-Black";
+      // ctx.textAlign = "left";
+      // ctx.fillText(`${server.latency}ms`, x + padding * 2 + 50, y + padding * 2 + 60);
+      // widthAddition = ctx.measureText(`${server.latency}ms`).width + padding
+      
+      if (server.tps) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "20px Lato-Black";
+        ctx.textAlign = "left";
+        ctx.fillText(`${server.tps.toFixed(2)} TPS`,  x + padding * 2 + 50 + widthAddition, y + padding * 2 + 60);
+        widthAddition += ctx.measureText(`${server.tps.toFixed(2)} TPS`).width + padding
+      }
+
+      if (server.customMode) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "20px Lato-Black";
+        ctx.textAlign = "left";
+        ctx.fillText(`${server.customMode.name}`, x + padding * 2 + 50 + widthAddition, y + padding * 2 + 60);
+        widthAddition += ctx.measureText(`${server.customMode.name}`).width + padding
+      }
 
       ctx.moveTo(x + padding * 2, y + padding * 2 + 80);
       ctx.lineTo(x + serverListCellWidth - padding * 2, y + padding * 2 + 80);
@@ -203,7 +230,7 @@ export default class EmbedGenerator {
       new ButtonBuilder()
         .setLabel("View Serverlist")
         .setStyle(ButtonStyle.Link)
-        .setURL("https://jpxs.international/live"),
+        .setURL("https://jpxs.io/live"),
     );
 
 

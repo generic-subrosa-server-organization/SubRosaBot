@@ -1,10 +1,11 @@
-import { ChannelType } from "discord.js";
+import { ChannelType, PermissionFlagsBits } from "discord.js";
 import ServerlistModule from "..";
 import SlashCommandBuilder from "../../../core/loaders/objects/customSlashCommandBuilder";
 
 const Command = new SlashCommandBuilder()
   .setName("setlistchannel")
   .setDescription("Set the channel to post the server data in")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addChannelOption((option) =>
     option
       .setName("channel")
